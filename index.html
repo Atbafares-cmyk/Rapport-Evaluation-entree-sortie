@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rapport de restitution — Évaluation des acquis · Qantev</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --p:  #5B2C6F; --p2: #8E44AD; --p3: #A569BD; --p4: #D2B4DE; --p5: #F3ECF9;
+    --green: #2E7D32; --green-bg: #E8F5E9; --green-light: #A5D6A7;
+    --orange: #E65100; --orange-bg: #FFF3E0;
+    --red: #B71C1C; --red-bg: #FFEBEE;
+    --gold: #B7770D; --gold-bg: #FFF8E7;
+    --grey: #666; --grey-light: #F5F5F5; --text: #1A1A1A;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #F0EBF5; color: var(--text); }
+
+  /* ─── SAISIE (masquée à l'impression) ─── */
+  .input-panel {
+    background: #fff; border-bottom: 3px solid var(--p4);
+    padding: 1.5rem 2rem; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(91,44,111,.1);
+  }
+  .input-panel h2 { font-size: 1rem; color: var(--p); margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+  .input-grid { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; gap: .5rem .75rem; align-items: center; max-width: 900px; }
+  .input-grid .col-head { font-size: .75rem; font-weight: 700; color: var(--grey); text-transform: uppercase; letter-spacing: .07em; padding-bottom: .25rem; border-bottom: 2px solid var(--p4); }
+  .row-inputs { display: contents; }
+  .row-num { font-size: .8rem; color: var(--grey); text-align: center; }
+  .input-grid input[type=text], .input-grid input[type=number] {
+    border: 1.5px solid var(--p4); border-radius: 7px; padding: .4rem .7rem;
+    font-size: .9rem; font-family: inherit; outline: none; width: 100%;
+    transition: border-color .2s;
+  }
+  .input-grid input:focus { border-color: var(--p2); }
+  .input-grid input[type=number] { text-align: center; }
+  .btn-row { display: flex; gap: .75rem; margin-top: 1.1rem; flex-wrap: wrap; }
+  .btn-generate {
+    background: linear-gradient(135deg, var(--p), var(--p2));
+    color: #fff; border: none; border-radius: 8px;
+    padding: .6rem 1.5rem; font-size: .9rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: opacity .2s;
+    box-shadow: 0 3px 10px rgba(91,44,111,.25);
+  }
+  .btn-generate:hover { opacity: .88; }
+  .btn-print {
+    background: #fff; color: var(--p); border: 2px solid var(--p);
+    border-radius: 8px; padding: .6rem 1.5rem; font-size: .9rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all .2s;
+  }
+  .btn-print:hover { background: var(--p5); }
+  .input-hint { font-size: .78rem; color: var(--grey); margin-top: .6rem; }
+
+  /* ─── RAPPORT ─── */
+  .report-wrapper { max-width: 900px; margin: 2rem auto; padding: 0 1.25rem 3rem; }
+
+  .report {
+    background: #fff; border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(91,44,111,.12);
+    overflow: hidden;
+  }
+
+  /* En-tête rapport */
+  .report-header {
+    background: linear-gradient(135deg, var(--p) 0%, var(--p2) 60%, var(--p3) 100%);
+    color: #fff; padding: 2rem 2.5rem 1.75rem;
+  }
+  .report-header .brand { font-size: .75rem; font-weight: 700; letter-spacing: .14em; opacity: .7; text-transform: uppercase; }
+  .report-header h1 { font-size: 1.5rem; font-weight: 700; margin: .5rem 0 .2rem; }
+  .report-header .subtitle { font-size: .95rem; opacity: .85; }
+  .report-meta {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin-top: 1rem;
+  }
+  .meta-chip {
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px; padding: .2rem .75rem; font-size: .78rem; font-weight: 600;
+  }
+
+  /* Corps rapport */
+  .report-body { padding: 2rem 2.5rem; }
+
+  .section-title {
+    font-size: .8rem; font-weight: 700; color: var(--p); text-transform: uppercase;
+    letter-spacing: .1em; margin-bottom: .75rem;
+    padding-bottom: .4rem; border-bottom: 2px solid var(--p4);
+    display: flex; align-items: center; gap: .4rem;
+  }
+
+  /* Stats globales */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card {
+    border-radius: var(--radius); padding: 1rem 1.25rem; text-align: center;
+    border: 1.5px solid var(--p4);
+  }
+  .stat-card.entry  { background: #EDE7F6; border-color: #B39DDB; }
+  .stat-card.exit   { background: var(--green-bg); border-color: var(--green-light); }
+  .stat-card.prog   { background: var(--gold-bg); border-color: #FFD54F; }
+  .stat-val { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .stat-card.entry .stat-val { color: var(--p); }
+  .stat-card.exit  .stat-val { color: var(--green); }
+  .stat-card.prog  .stat-val { color: var(--gold); }
+  .stat-lbl { font-size: .78rem; color: var(--grey); margin-top: .35rem; font-weight: 500; }
+
+  /* Tableau participants */
+  table.results { width: 100%; border-collapse: collapse; margin-bottom: 2rem; font-size: .88rem; }
+  table.results thead th {
+    background: var(--p5); color: var(--p); font-weight: 700;
+    padding: .6rem .85rem; text-align: left; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 2px solid var(--p4);
+  }
+  table.results tbody tr { border-bottom: 1px solid #F0EBF5; transition: background .15s; }
+  table.results tbody tr:hover { background: #FAF5FF; }
+  table.results td { padding: .65rem .85rem; vertical-align: middle; }
+  .td-name { font-weight: 600; }
+  .td-score { text-align: center; font-weight: 700; font-size: .95rem; }
+  .td-prog { text-align: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .25rem .65rem; border-radius: 20px; font-size: .8rem; font-weight: 700;
+  }
+  .badge.up   { background: var(--green-bg);  color: var(--green); }
+  .badge.same { background: var(--grey-light); color: var(--grey); }
+  .badge.down { background: var(--red-bg);     color: var(--red); }
+
+  /* Barre de progression */
+  .progress-bar-wrap { background: #EDE7F6; border-radius: 20px; height: 8px; width: 80px; display: inline-block; vertical-align: middle; margin-left: .4rem; }
+  .progress-bar-fill { height: 8px; border-radius: 20px; background: linear-gradient(90deg, var(--p2), var(--p3)); transition: width .4s; }
+
+  /* Graphique */
+  .chart-container { position: relative; height: 320px; margin-bottom: 2rem; }
+
+  /* Note pédagogique */
+  .note-box {
+    background: var(--p5); border-left: 4px solid var(--p);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 1rem 1.25rem; margin-bottom: 2rem; font-size: .88rem; line-height: 1.6;
+  }
+  .note-box strong { color: var(--p); }
+
+  /* Qualiopi */
+  .qualiopi-row {
+    display: flex; align-items: center; gap: .75rem;
+    background: var(--gold-bg); border: 1.5px solid #FFD54F;
+    border-radius: var(--radius); padding: .85rem 1.25rem; margin-bottom: 2rem;
+    font-size: .85rem;
+  }
+  .qualiopi-icon { font-size: 1.4rem; }
+  .qualiopi-text strong { color: var(--gold); display: block; font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; }
+
+  /* Pied de rapport */
+  .report-footer {
+    border-top: 2px solid var(--p5); padding: 1.25rem 2.5rem;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: .5rem;
+    font-size: .78rem; color: var(--grey);
+  }
+  .report-footer strong { color: var(--p); }
+
+  /* Vide / placeholder */
+  .empty-state { text-align: center; padding: 3rem 2rem; color: var(--grey); }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+  .empty-state p { font-size: .95rem; }
+
+  /* ─── IMPRESSION ─── */
+  @media print {
+    body { background: #fff; }
+    .input-panel, .btn-row, .report-wrapper > *:not(.report) { display: none !important; }
+    .report-wrapper { margin: 0; padding: 0; max-width: 100%; }
+    .report { box-shadow: none; border-radius: 0; }
+    .report-body { padding: 1.5rem 2rem; }
+    .report-header { padding: 1.5rem 2rem; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .stats-grid .stat-card, .note-box, .qualiopi-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .chart-container { height: 260px; }
+    table.results { font-size: .82rem; }
+    @page { margin: 1cm; size: A4; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── PANNEAU DE SAISIE ─── -->
+<div class="input-panel">
+  <h2>📋 Saisie des scores — Données issues de Formspree</h2>
+  <div class="input-grid">
+    <div class="col-head">Prénom / Participant</div>
+    <div class="col-head">Poste / Équipe</div>
+    <div class="col-head" style="text-align:center">Score ENTRÉE /15</div>
+    <div class="col-head" style="text-align:center">Score SORTIE /15</div>
+    <div id="rows"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-generate" onclick="generateReport()">⚡ Générer le rapport</button>
+    <button class="btn-print" onclick="window.print()">🖨️ Imprimer / Exporter PDF</button>
+  </div>
+  <p class="input-hint">💡 Les scores sont disponibles dans Formspree → Submissions → colonne <em>score_sur_15</em>. Remplissez une ligne par participant puis cliquez sur Générer.</p>
+</div>
+
+<!-- ─── RAPPORT ─── -->
+<div class="report-wrapper">
+  <div class="report" id="report">
+    <div class="empty-state">
+      <div class="icon">📊</div>
+      <p>Saisissez les scores ci-dessus et cliquez sur <strong>Générer le rapport</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const NB = 9;
+
+// Créer les lignes de saisie
+const rowsContainer = document.getElementById('rows');
+for (let i = 1; i <= NB; i++) {
+  rowsContainer.innerHTML += `
+    <input type="text"   id="name${i}"   placeholder="Prénom ${i}" style="grid-column:1"/>
+    <input type="text"   id="role${i}"   placeholder="Rôle…"       style="grid-column:2"/>
+    <input type="number" id="entry${i}"  placeholder="—" min="0" max="15" style="grid-column:3"/>
+    <input type="number" id="exit${i}"   placeholder="—" min="0" max="15" style="grid-column:4"/>
+  `;
+}
+
+let chartInstance = null;
+
+function generateReport() {
+  const participants = [];
+  for (let i = 1; i <= NB; i++) {
+    const name  = document.getElementById('name'+i).value.trim();
+    const role  = document.getElementById('role'+i).value.trim();
+    const entry = parseInt(document.getElementById('entry'+i).value);
+    const exit  = parseInt(document.getElementById('exit'+i).value);
+    if (name && !isNaN(entry) && !isNaN(exit)) {
+      participants.push({ name, role, entry, exit, diff: exit - entry });
+    }
+  }
+
+  if (participants.length === 0) {
+    alert('Veuillez saisir au moins un participant avec ses scores.');
+    return;
+  }
+
+  const avgEntry = (participants.reduce((s,p) => s+p.entry, 0) / participants.length).toFixed(1);
+  const avgExit  = (participants.reduce((s,p) => s+p.exit,  0) / participants.length).toFixed(1);
+  const avgProg  = (participants.reduce((s,p) => s+p.diff,  0) / participants.length).toFixed(1);
+  const today    = new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+
+  // Tableau participants
+  const rows = participants.map(p => {
+    const pct = Math.round((p.exit / 15) * 100);
+    let badge = '';
+    if      (p.diff > 0)  badge = `<span class="badge up">▲ +${p.diff}</span>`;
+    else if (p.diff === 0) badge = `<span class="badge same">= 0</span>`;
+    else                   badge = `<span class="badge down">▼ ${p.diff}</span>`;
+    return `
+      <tr>
+        <td class="td-name">${p.name}</td>
+        <td style="color:var(--grey);font-size:.83rem">${p.role || '—'}</td>
+        <td class="td-score" style="color:var(--p)">${p.entry}/15</td>
+        <td class="td-score" style="color:var(--green)">${p.exit}/15</td>
+        <td class="td-prog">${badge}</td>
+        <td>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+          <span style="font-size:.78rem;color:var(--grey);margin-left:.4rem">${pct}%</span>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('report').innerHTML = `
+    <!-- EN-TÊTE -->
+    <div class="report-header">
+      <div class="brand">23 MindSet · Formation Management · Document confidentiel</div>
+      <h1>Rapport de restitution — Évaluation des acquis</h1>
+      <div class="subtitle">Formation Management · Qantev · Sessions du 23, 27 et 28 juillet 2026</div>
+      <div class="report-meta">
+        <span class="meta-chip">📅 Édité le ${today}</span>
+        <span class="meta-chip">👥 ${participants.length} participant${participants.length>1?'s':''}</span>
+        <span class="meta-chip">📝 15 questions Vrai / Faux</span>
+        <span class="meta-chip">🏅 Qualiopi — Indicateurs 7 &amp; 8</span>
+      </div>
+    </div>
+
+    <div class="report-body">
+
+      <!-- STATS GLOBALES -->
+      <div class="section-title">📊 Résultats globaux du groupe</div>
+      <div class="stats-grid">
+        <div class="stat-card entry">
+          <div class="stat-val">${avgEntry}<span style="font-size:1rem;font-weight:400">/15</span></div>
+          <div class="stat-lbl">Score moyen — Entrée (Séance 1)</div>
+        </div>
+        <div class="stat-card exit">
+          <div class="stat-val">${avgExit}<span style="font-size:1rem;font-weight:400">/15</span></div>
+          <div class="stat-lbl">Score moyen — Sortie (Séance 3)</div>
+        </div>
+        <div class="stat-card prog">
+          <div class="stat-val">${avgProg > 0 ? '+' : ''}${avgProg}<span style="font-size:1rem;font-weight:400"> pts</span></div>
+          <div class="stat-lbl">Progression moyenne du groupe</div>
+        </div>
+      </div>
+
+      <!-- TABLEAU DÉTAIL -->
+      <div class="section-title">👤 Résultats par participant</div>
+      <table class="results">
+        <thead>
+          <tr>
+            <th>Participant</th>
+            <th>Poste / Équipe</th>
+            <th style="text-align:center">Entrée</th>
+            <th style="text-align:center">Sortie</th>
+            <th style="text-align:center">Progression</th>
+            <th>Taux de réussite sortie</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <!-- GRAPHIQUE -->
+      <div class="section-title">📈 Comparaison entrée / sortie par participant</div>
+      <div class="chart-container">
+        <canvas id="myChart"></canvas>
+      </div>
+
+      <!-- NOTE PÉDAGOGIQUE -->
+      <div class="section-title">💬 Note du formateur</div>
+      <div class="note-box">
+        <strong>Formateur :</strong> ATBA Fares · 23 MindSet<br>
+        <strong>Dispositif :</strong> 3 sessions de 3h30 · 9 managers · Qantev (Paris)<br>
+        <strong>Contenu évalué :</strong> Outils de gestion opérationnelle (SMART, Eisenhower, Délégation, DECIDE), posture de manager-coach (Hersey-Blanchard, feedback KSS/STAR, entretien de suivi), gestion des conflits et assertivité (TKI, DESC, CNV).<br>
+        <strong>Méthode d'évaluation :</strong> Questionnaire d'auto-évaluation des acquis en 15 questions Vrai / Faux, administré en ligne (GitHub Pages + Formspree), passé en début de Séance 1 (positionnement) et en fin de Séance 3 (mesure des acquis).
+      </div>
+
+      <!-- CONFORMITÉ QUALIOPI -->
+      <div class="qualiopi-row">
+        <div class="qualiopi-icon">🏅</div>
+        <div class="qualiopi-text">
+          <strong>Conformité Qualiopi — RNQ Indicateurs 7 &amp; 8</strong>
+          Ce rapport documente l'évaluation du positionnement des bénéficiaires (Indicateur 7) et la mesure de l'atteinte des objectifs pédagogiques en fin de prestation (Indicateur 8). Les données sont conservées par 23 MindSet et transmises à Excellens Formation à titre de preuve de qualité pédagogique.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PIED DE PAGE -->
+    <div class="report-footer">
+      <div>© 2026 – <strong>23 MindSet / ATBA Fares</strong> · Tous droits réservés</div>
+      <div>Document établi pour <strong>Excellens Formation</strong> · Confidentiel</div>
+      <div>Formation réalisée pour <strong>Qantev</strong> · Juillet 2026</div>
+    </div>
+  `;
+
+  // Graphique Chart.js
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('myChart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: participants.map(p => p.name),
+      datasets: [
+        {
+          label: 'Score Entrée /15',
+          data: participants.map(p => p.entry),
+          backgroundColor: 'rgba(142,68,173,0.5)',
+          borderColor: '#8E44AD',
+          borderWidth: 2, borderRadius: 5,
+        },
+        {
+          label: 'Score Sortie /15',
+          data: participants.map(p => p.exit),
+          backgroundColor: 'rgba(46,125,50,0.55)',
+          borderColor: '#2E7D32',
+          borderWidth: 2, borderRadius: 5,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: 'Segoe UI', size: 12 }, padding: 16 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label} : ${ctx.parsed.y}/15`
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0, max: 15,
+          ticks: { stepSize: 3, font: { size: 11 } },
+          grid: { color: '#F0EBF5' },
+          title: { display: true, text: 'Score /15', font: { size: 11 }, color: '#666' }
+        },
+        x: { ticks: { font: { size: 12, weight: '600' } }, grid: { display: false } }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
